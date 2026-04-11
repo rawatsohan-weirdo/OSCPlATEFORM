@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "One Step Coaching Platform"
+version = "1.0.0"
+id = "artifacts/one-step-coaching"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23994
+
+[services.development]
+run = "pnpm --filter @workspace/one-step-coaching run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/one-step-coaching", "run", "build" ]
+publicDir = "artifacts/one-step-coaching/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23994"
+BASE_PATH = "/"
