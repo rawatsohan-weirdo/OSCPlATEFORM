@@ -43,13 +43,20 @@ Mobile-first LMS for exam preparation built with React/Vite, connecting directly
 Subject → Chapter → Topic → Content (text/PDF/video)
 
 ### Supabase Setup (Required)
-1. Run `supabase-schema.sql` in Supabase SQL Editor to create all tables, RLS policies, triggers, and storage bucket
-2. First registered user must be manually set to `role='Admin'` and `status='approved'` in the `profiles` table via Supabase dashboard
+1. Run `supabase-schema.sql` in Supabase SQL Editor to create all tables, RLS policies, triggers, helper functions, and the storage bucket
+2. After the schema is installed, the first registered user is automatically assigned `role='Admin'` and `status='approved'`
+3. Later Student/Teacher registrations remain pending until approved in the Admin page
 
 ### Environment Variables
 - `SUPABASE_URL` — Supabase project URL (secret)
 - `SUPABASE_ANON_KEY` — Supabase anonymous key (secret)
 - Vite config maps these to `import.meta.env.VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` via `define`
+
+### Database Security Notes
+- RLS policies use security-definer helper functions to avoid recursive `users` table policy checks.
+- Regular users can update profile fields but cannot self-promote role/status.
+- Admins can approve/reject users and manage all content/test records.
+- The `coaching-assets` bucket is public so PDFs and avatars generated through `getPublicUrl()` open correctly from the app.
 
 ### Key Files
 - `supabase-schema.sql` — Complete database schema

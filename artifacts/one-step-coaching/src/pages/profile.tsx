@@ -46,6 +46,10 @@ export default function ProfilePage() {
   };
 
   const handleChangePassword = async () => {
+    if (!currentPassword) {
+      toast({ title: "Error", description: "Current password is required", variant: "destructive" });
+      return;
+    }
     if (newPassword.length < 8) {
       toast({ title: "Error", description: "Password must be at least 8 characters", variant: "destructive" });
       return;
@@ -60,6 +64,17 @@ export default function ProfilePage() {
     }
 
     setChangingPw(true);
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user?.email || "",
+      password: currentPassword,
+    });
+
+    if (verifyError) {
+      toast({ title: "Error", description: "Current password is incorrect", variant: "destructive" });
+      setChangingPw(false);
+      return;
+    }
+
     const { error } = await supabase.auth.updateUser({ password: newPassword });
 
     if (error) {
@@ -205,6 +220,7 @@ export default function ProfilePage() {
             <Label htmlFor="displayName">Full Name</Label>
             <Input
               id="displayName"
+              autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               maxLength={100}
@@ -230,6 +246,7 @@ export default function ProfilePage() {
             <Input
               id="currentPw"
               type="password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               data-testid="input-current-password"
@@ -240,6 +257,7 @@ export default function ProfilePage() {
             <Input
               id="newPw"
               type="password"
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Min 8 chars, 1 letter, 1 number"
@@ -251,6 +269,7 @@ export default function ProfilePage() {
             <Input
               id="confirmPw"
               type="password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               data-testid="input-confirm-password"

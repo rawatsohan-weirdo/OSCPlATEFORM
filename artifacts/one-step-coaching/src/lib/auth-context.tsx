@@ -85,11 +85,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: null, message: "Account not activated. Check your email for verification link." };
     }
 
-    const { data: profileData } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from("users")
       .select("status")
       .eq("id", data.user.id)
       .single();
+
+    if (profileError) {
+      await supabase.auth.signOut();
+      return {
+        error: new Error(`Database setup issue: ${profileError.message}. Please run the latest supabase-schema.sql file.`),
+      };
+    }
 
     if (profileData?.status === "pending") {
       await supabase.auth.signOut();

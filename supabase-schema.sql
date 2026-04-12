@@ -1,19 +1,15 @@
 -- ============================================================
--- ONE STEP COACHING PLATFORM - COMPLETE SQL SCHEMA
--- Run this in your Supabase SQL Editor (https://supabase.com)
+-- ONE STEP COACHING PLATFORM - COMPLETE SUPABASE SCHEMA
+-- Run this entire file in your Supabase SQL Editor.
+-- It is safe to run more than once.
 -- ============================================================
 
--- Step 1: Go to your Supabase Dashboard
--- Step 2: Click "SQL Editor" in the left sidebar
--- Step 3: Click "New query"
--- Step 4: Paste this ENTIRE file
--- Step 5: Click "Run" (or press Ctrl+Enter / Cmd+Enter)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ============================================================
 -- 1. TABLES
 -- ============================================================
 
--- Users profile table (linked to Supabase Auth)
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL DEFAULT '',
@@ -25,7 +21,6 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Subjects table
 CREATE TABLE IF NOT EXISTS public.subjects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -34,7 +29,6 @@ CREATE TABLE IF NOT EXISTS public.subjects (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Chapters table
 CREATE TABLE IF NOT EXISTS public.chapters (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   subject_id UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
@@ -44,7 +38,6 @@ CREATE TABLE IF NOT EXISTS public.chapters (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Topics table
 CREATE TABLE IF NOT EXISTS public.topics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   chapter_id UUID NOT NULL REFERENCES public.chapters(id) ON DELETE CASCADE,
@@ -54,7 +47,6 @@ CREATE TABLE IF NOT EXISTS public.topics (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Content items table
 CREATE TABLE IF NOT EXISTS public.content_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   topic_id UUID NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
@@ -66,7 +58,6 @@ CREATE TABLE IF NOT EXISTS public.content_items (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tests table
 CREATE TABLE IF NOT EXISTS public.tests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
@@ -79,7 +70,6 @@ CREATE TABLE IF NOT EXISTS public.tests (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Questions table
 CREATE TABLE IF NOT EXISTS public.questions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   test_id UUID NOT NULL REFERENCES public.tests(id) ON DELETE CASCADE,
@@ -93,7 +83,6 @@ CREATE TABLE IF NOT EXISTS public.questions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Test attempts table
 CREATE TABLE IF NOT EXISTS public.test_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   test_id UUID NOT NULL REFERENCES public.tests(id) ON DELETE CASCADE,
@@ -122,49 +111,112 @@ CREATE INDEX IF NOT EXISTS idx_attempts_test ON public.test_attempts(test_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_completed ON public.test_attempts(completed_at);
 
 -- ============================================================
--- 3. TRIGGERS
+-- 3. HELPER FUNCTIONS
 -- ============================================================
 
--- Auto-create user profile when someone signs up
+CREATE OR REPLACE FUNCTION public.current_user_role()
+RETURNS TEXT
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role FROM public.users WHERE id = auth.uid()
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_user_status()
+RETURNS TEXT
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT status FROM public.users WHERE id = auth.uid()
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE((SELECT role = 'Admin' FROM public.users WHERE id = auth.uid()), false)
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_teacher_or_admin()
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE((SELECT role IN ('Teacher', 'Admin') FROM public.users WHERE id = auth.uid()), false)
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_approved_user()
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE((SELECT status = 'approved' FROM public.users WHERE id = auth.uid()), false)
+$$;
+
+-- ============================================================
+-- 4. TRIGGERS
+-- ============================================================
+
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  existing_profile_count INTEGER;
+  requested_role TEXT;
 BEGIN
+  SELECT COUNT(*) INTO existing_profile_count FROM public.users;
+  requested_role := COALESCE(NEW.raw_user_meta_data->>'role', 'Student');
+
+  IF requested_role NOT IN ('Student', 'Teacher') THEN
+    requested_role := 'Student';
+  END IF;
+
   INSERT INTO public.users (id, full_name, mobile_number, role, status)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
     COALESCE(NEW.raw_user_meta_data->>'mobile_number', ''),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'Student'),
-    'pending'
+    CASE WHEN existing_profile_count = 0 THEN 'Admin' ELSE requested_role END,
+    CASE WHEN existing_profile_count = 0 THEN 'approved' ELSE 'pending' END
   );
+
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Auto-update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
 CREATE TRIGGER update_users_updated_at
 BEFORE UPDATE ON public.users
-FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ============================================================
--- 4. ROW LEVEL SECURITY (RLS)
+-- 5. ROW LEVEL SECURITY
 -- ============================================================
 
--- Enable RLS on all tables
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subjects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chapters ENABLE ROW LEVEL SECURITY;
@@ -174,84 +226,109 @@ ALTER TABLE public.tests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.test_attempts ENABLE ROW LEVEL SECURITY;
 
--- USERS policies
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
+DROP POLICY IF EXISTS "Admins can view all users" ON public.users;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
+DROP POLICY IF EXISTS "Users can update own editable profile fields" ON public.users;
+DROP POLICY IF EXISTS "Admins can update all users" ON public.users;
+DROP POLICY IF EXISTS "System can insert profiles" ON public.users;
+DROP POLICY IF EXISTS "Admins can delete users" ON public.users;
+
 CREATE POLICY "Users can view own profile" ON public.users
   FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "Admins can view all users" ON public.users
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'Admin')
-  );
-
-CREATE POLICY "Users can update own profile" ON public.users
-  FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Admins can update all users" ON public.users
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'Admin')
-  );
+  FOR SELECT USING (public.is_admin());
 
 CREATE POLICY "System can insert profiles" ON public.users
   FOR INSERT WITH CHECK (true);
 
--- SUBJECTS policies
-CREATE POLICY "Anyone can view subjects" ON public.subjects
-  FOR SELECT USING (true);
-
-CREATE POLICY "Teachers and admins can create subjects" ON public.subjects
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Teacher', 'Admin'))
+CREATE POLICY "Users can update own editable profile fields" ON public.users
+  FOR UPDATE USING (auth.uid() = id)
+  WITH CHECK (
+    auth.uid() = id
+    AND role = public.current_user_role()
+    AND status = public.current_user_status()
   );
 
+CREATE POLICY "Admins can update all users" ON public.users
+  FOR UPDATE USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete users" ON public.users
+  FOR DELETE USING (public.is_admin() AND auth.uid() <> id);
+
+DROP POLICY IF EXISTS "Anyone can view subjects" ON public.subjects;
+DROP POLICY IF EXISTS "Approved users can view subjects" ON public.subjects;
+DROP POLICY IF EXISTS "Teachers and admins can create subjects" ON public.subjects;
+DROP POLICY IF EXISTS "Teachers can update own subjects" ON public.subjects;
+DROP POLICY IF EXISTS "Teachers can delete own subjects" ON public.subjects;
+DROP POLICY IF EXISTS "Admins can update any subject" ON public.subjects;
+DROP POLICY IF EXISTS "Admins can delete any subject" ON public.subjects;
+
+CREATE POLICY "Approved users can view subjects" ON public.subjects
+  FOR SELECT USING (public.is_approved_user());
+
+CREATE POLICY "Teachers and admins can create subjects" ON public.subjects
+  FOR INSERT WITH CHECK (public.is_teacher_or_admin() AND created_by = auth.uid());
+
 CREATE POLICY "Teachers can update own subjects" ON public.subjects
-  FOR UPDATE USING (created_by = auth.uid());
+  FOR UPDATE USING (created_by = auth.uid())
+  WITH CHECK (created_by = auth.uid());
 
 CREATE POLICY "Teachers can delete own subjects" ON public.subjects
   FOR DELETE USING (created_by = auth.uid());
 
 CREATE POLICY "Admins can update any subject" ON public.subjects
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'Admin')
-  );
+  FOR UPDATE USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete any subject" ON public.subjects
-  FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'Admin')
-  );
+  FOR DELETE USING (public.is_admin());
 
--- CHAPTERS policies
-CREATE POLICY "Anyone can view chapters" ON public.chapters
-  FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can view chapters" ON public.chapters;
+DROP POLICY IF EXISTS "Approved users can view chapters" ON public.chapters;
+DROP POLICY IF EXISTS "Teachers and admins can create chapters" ON public.chapters;
+DROP POLICY IF EXISTS "Teachers can update own chapters" ON public.chapters;
+DROP POLICY IF EXISTS "Teachers can delete own chapters" ON public.chapters;
+DROP POLICY IF EXISTS "Admins can update any chapter" ON public.chapters;
+DROP POLICY IF EXISTS "Admins can delete any chapter" ON public.chapters;
+
+CREATE POLICY "Approved users can view chapters" ON public.chapters
+  FOR SELECT USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create chapters" ON public.chapters
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Teacher', 'Admin'))
-  );
+  FOR INSERT WITH CHECK (public.is_teacher_or_admin());
 
 CREATE POLICY "Teachers can update own chapters" ON public.chapters
   FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.subjects
-      WHERE id = public.chapters.subject_id AND created_by = auth.uid()
-    )
+    EXISTS (SELECT 1 FROM public.subjects WHERE id = public.chapters.subject_id AND created_by = auth.uid())
   );
 
 CREATE POLICY "Teachers can delete own chapters" ON public.chapters
   FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM public.subjects
-      WHERE id = public.chapters.subject_id AND created_by = auth.uid()
-    )
+    EXISTS (SELECT 1 FROM public.subjects WHERE id = public.chapters.subject_id AND created_by = auth.uid())
   );
 
--- TOPICS policies
-CREATE POLICY "Anyone can view topics" ON public.topics
-  FOR SELECT USING (true);
+CREATE POLICY "Admins can update any chapter" ON public.chapters
+  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete any chapter" ON public.chapters
+  FOR DELETE USING (public.is_admin());
+
+DROP POLICY IF EXISTS "Anyone can view topics" ON public.topics;
+DROP POLICY IF EXISTS "Approved users can view topics" ON public.topics;
+DROP POLICY IF EXISTS "Teachers and admins can create topics" ON public.topics;
+DROP POLICY IF EXISTS "Teachers can update own topics" ON public.topics;
+DROP POLICY IF EXISTS "Teachers can delete own topics" ON public.topics;
+DROP POLICY IF EXISTS "Admins can update any topic" ON public.topics;
+DROP POLICY IF EXISTS "Admins can delete any topic" ON public.topics;
+
+CREATE POLICY "Approved users can view topics" ON public.topics
+  FOR SELECT USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create topics" ON public.topics
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Teacher', 'Admin'))
-  );
+  FOR INSERT WITH CHECK (public.is_teacher_or_admin());
 
 CREATE POLICY "Teachers can update own topics" ON public.topics
   FOR UPDATE USING (
@@ -271,14 +348,25 @@ CREATE POLICY "Teachers can delete own topics" ON public.topics
     )
   );
 
--- CONTENT ITEMS policies
-CREATE POLICY "Anyone can view content" ON public.content_items
-  FOR SELECT USING (true);
+CREATE POLICY "Admins can update any topic" ON public.topics
+  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete any topic" ON public.topics
+  FOR DELETE USING (public.is_admin());
+
+DROP POLICY IF EXISTS "Anyone can view content" ON public.content_items;
+DROP POLICY IF EXISTS "Approved users can view content" ON public.content_items;
+DROP POLICY IF EXISTS "Teachers and admins can create content" ON public.content_items;
+DROP POLICY IF EXISTS "Teachers can update own content" ON public.content_items;
+DROP POLICY IF EXISTS "Teachers can delete own content" ON public.content_items;
+DROP POLICY IF EXISTS "Admins can update any content" ON public.content_items;
+DROP POLICY IF EXISTS "Admins can delete any content" ON public.content_items;
+
+CREATE POLICY "Approved users can view content" ON public.content_items
+  FOR SELECT USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create content" ON public.content_items
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Teacher', 'Admin'))
-  );
+  FOR INSERT WITH CHECK (public.is_teacher_or_admin());
 
 CREATE POLICY "Teachers can update own content" ON public.content_items
   FOR UPDATE USING (
@@ -300,108 +388,133 @@ CREATE POLICY "Teachers can delete own content" ON public.content_items
     )
   );
 
--- TESTS policies
-CREATE POLICY "Users can view active tests" ON public.tests
-  FOR SELECT USING (
-    is_active = TRUE OR created_by = auth.uid() OR
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'Admin')
-  );
+CREATE POLICY "Admins can update any content" ON public.content_items
+  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete any content" ON public.content_items
+  FOR DELETE USING (public.is_admin());
+
+DROP POLICY IF EXISTS "Users can view active tests" ON public.tests;
+DROP POLICY IF EXISTS "Approved users can view tests" ON public.tests;
+DROP POLICY IF EXISTS "Teachers and admins can create tests" ON public.tests;
+DROP POLICY IF EXISTS "Teachers can update own tests" ON public.tests;
+DROP POLICY IF EXISTS "Teachers can delete own tests" ON public.tests;
+DROP POLICY IF EXISTS "Admins can update any test" ON public.tests;
+DROP POLICY IF EXISTS "Admins can delete any test" ON public.tests;
+
+CREATE POLICY "Approved users can view tests" ON public.tests
+  FOR SELECT USING (public.is_approved_user() AND (is_active = TRUE OR created_by = auth.uid() OR public.is_admin()));
 
 CREATE POLICY "Teachers and admins can create tests" ON public.tests
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Teacher', 'Admin'))
-  );
+  FOR INSERT WITH CHECK (public.is_teacher_or_admin() AND created_by = auth.uid());
 
 CREATE POLICY "Teachers can update own tests" ON public.tests
-  FOR UPDATE USING (created_by = auth.uid());
+  FOR UPDATE USING (created_by = auth.uid()) WITH CHECK (created_by = auth.uid());
 
 CREATE POLICY "Teachers can delete own tests" ON public.tests
   FOR DELETE USING (created_by = auth.uid());
 
--- QUESTIONS policies
-CREATE POLICY "Anyone can view questions" ON public.questions
-  FOR SELECT USING (true);
+CREATE POLICY "Admins can update any test" ON public.tests
+  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete any test" ON public.tests
+  FOR DELETE USING (public.is_admin());
+
+DROP POLICY IF EXISTS "Anyone can view questions" ON public.questions;
+DROP POLICY IF EXISTS "Approved users can view questions" ON public.questions;
+DROP POLICY IF EXISTS "Teachers and admins can create questions" ON public.questions;
+DROP POLICY IF EXISTS "Teachers can update own questions" ON public.questions;
+DROP POLICY IF EXISTS "Teachers can delete own questions" ON public.questions;
+DROP POLICY IF EXISTS "Admins can update any question" ON public.questions;
+DROP POLICY IF EXISTS "Admins can delete any question" ON public.questions;
+
+CREATE POLICY "Approved users can view questions" ON public.questions
+  FOR SELECT USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create questions" ON public.questions
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Teacher', 'Admin'))
-  );
+  FOR INSERT WITH CHECK (public.is_teacher_or_admin());
 
 CREATE POLICY "Teachers can update own questions" ON public.questions
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.tests WHERE id = public.questions.test_id AND created_by = auth.uid())
-  );
+  FOR UPDATE USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.questions.test_id AND created_by = auth.uid()));
 
 CREATE POLICY "Teachers can delete own questions" ON public.questions
-  FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.tests WHERE id = public.questions.test_id AND created_by = auth.uid())
-  );
+  FOR DELETE USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.questions.test_id AND created_by = auth.uid()));
 
--- TEST ATTEMPTS policies
+CREATE POLICY "Admins can update any question" ON public.questions
+  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete any question" ON public.questions
+  FOR DELETE USING (public.is_admin());
+
+DROP POLICY IF EXISTS "Students can view own attempts" ON public.test_attempts;
+DROP POLICY IF EXISTS "Teachers can view attempts for their tests" ON public.test_attempts;
+DROP POLICY IF EXISTS "Admins can view all attempts" ON public.test_attempts;
+DROP POLICY IF EXISTS "Users can insert own attempts" ON public.test_attempts;
+
 CREATE POLICY "Students can view own attempts" ON public.test_attempts
   FOR SELECT USING (user_id = auth.uid());
 
 CREATE POLICY "Teachers can view attempts for their tests" ON public.test_attempts
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.tests WHERE id = public.test_attempts.test_id AND created_by = auth.uid())
-  );
+  FOR SELECT USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.test_attempts.test_id AND created_by = auth.uid()));
 
 CREATE POLICY "Admins can view all attempts" ON public.test_attempts
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'Admin')
-  );
+  FOR SELECT USING (public.is_admin());
 
 CREATE POLICY "Users can insert own attempts" ON public.test_attempts
-  FOR INSERT WITH CHECK (user_id = auth.uid());
+  FOR INSERT WITH CHECK (user_id = auth.uid() AND public.is_approved_user());
 
 -- ============================================================
--- 5. STORAGE BUCKET
+-- 6. STORAGE BUCKET AND POLICIES
 -- ============================================================
--- NOTE: You need to create the storage bucket manually:
--- 1. Go to "Storage" in left sidebar
--- 2. Click "New bucket"
--- 3. Name it "coaching-assets"
--- 4. Keep it as PRIVATE (not public)
--- 5. Click "Create bucket"
---
--- Then run these storage policies in the SQL editor:
 
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('coaching-assets', 'coaching-assets', false)
-ON CONFLICT (id) DO NOTHING;
+VALUES ('coaching-assets', 'coaching-assets', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
 
-CREATE POLICY "Users can upload profile pics" ON storage.objects
+DROP POLICY IF EXISTS "Users can upload profile pics" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload own profile pics" ON storage.objects;
+DROP POLICY IF EXISTS "Users can view profile pics" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own profile pics" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own profile pics" ON storage.objects;
+DROP POLICY IF EXISTS "Teachers can upload content" ON storage.objects;
+DROP POLICY IF EXISTS "Everyone can view content files" ON storage.objects;
+DROP POLICY IF EXISTS "Approved users can view coaching assets" ON storage.objects;
+
+CREATE POLICY "Users can upload own profile pics" ON storage.objects
   FOR INSERT WITH CHECK (
-    bucket_id = 'coaching-assets' AND
-    (storage.foldername(name))[1] = 'profiles'
-  );
-
-CREATE POLICY "Users can view profile pics" ON storage.objects
-  FOR SELECT USING (
     bucket_id = 'coaching-assets'
+    AND (storage.foldername(name))[1] = 'profiles'
+    AND (storage.foldername(name))[2] = auth.uid()::text
   );
 
 CREATE POLICY "Users can update own profile pics" ON storage.objects
   FOR UPDATE USING (
-    bucket_id = 'coaching-assets' AND
-    (storage.foldername(name))[1] = 'profiles'
+    bucket_id = 'coaching-assets'
+    AND (storage.foldername(name))[1] = 'profiles'
+    AND (storage.foldername(name))[2] = auth.uid()::text
   );
 
 CREATE POLICY "Users can delete own profile pics" ON storage.objects
   FOR DELETE USING (
-    bucket_id = 'coaching-assets' AND
-    (storage.foldername(name))[1] = 'profiles'
+    bucket_id = 'coaching-assets'
+    AND (storage.foldername(name))[1] = 'profiles'
+    AND (storage.foldername(name))[2] = auth.uid()::text
   );
 
 CREATE POLICY "Teachers can upload content" ON storage.objects
   FOR INSERT WITH CHECK (
-    bucket_id = 'coaching-assets' AND
-    (storage.foldername(name))[1] = 'content' AND
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('Teacher', 'Admin'))
+    bucket_id = 'coaching-assets'
+    AND (storage.foldername(name))[1] = 'content'
+    AND public.is_teacher_or_admin()
   );
 
-CREATE POLICY "Everyone can view content files" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'coaching-assets' AND
-    (storage.foldername(name))[1] = 'content'
-  );
+CREATE POLICY "Approved users can view coaching assets" ON storage.objects
+  FOR SELECT USING (bucket_id = 'coaching-assets' AND public.is_approved_user());
+
+-- ============================================================
+-- 7. FIRST ADMIN NOTE
+-- ============================================================
+-- After this schema is installed, the first account registered in the app
+-- is automatically created as role='Admin' and status='approved'.
+-- All later Student/Teacher registrations remain pending until approved.
+-- ============================================================
