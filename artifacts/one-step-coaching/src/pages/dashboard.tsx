@@ -120,23 +120,23 @@ export default function DashboardPage() {
   }
 
   const studentCards = [
-    { title: "Tests Taken", value: stats.attempts, icon: ClipboardList, color: "text-blue-600" },
-    { title: "Average Score", value: `${stats.avgScore}%`, icon: TrendingUp, color: "text-green-600" },
-    { title: "Available Subjects", value: stats.subjects, icon: BookOpen, color: "text-purple-600" },
-    { title: "Available Tests", value: stats.availableTests, icon: Award, color: "text-amber-600" },
+    { title: "Tests Taken", value: stats.attempts, icon: ClipboardList, color: "text-secondary" },
+    { title: "Average Score", value: `${stats.avgScore}%`, icon: TrendingUp, color: "text-primary" },
+    { title: "Available Subjects", value: stats.subjects, icon: BookOpen, color: "text-[hsl(var(--chart-5))]" },
+    { title: "Available Tests", value: stats.availableTests, icon: Award, color: "text-accent" },
   ];
 
   const teacherCards = [
-    { title: "My Subjects", value: stats.mySubjects, icon: BookOpen, color: "text-blue-600" },
-    { title: "My Tests", value: stats.myTests, icon: ClipboardList, color: "text-green-600" },
-    { title: "Student Attempts", value: stats.studentAttempts, icon: TrendingUp, color: "text-purple-600" },
+    { title: "My Subjects", value: stats.mySubjects, icon: BookOpen, color: "text-secondary" },
+    { title: "My Tests", value: stats.myTests, icon: ClipboardList, color: "text-primary" },
+    { title: "Student Attempts", value: stats.studentAttempts, icon: TrendingUp, color: "text-[hsl(var(--chart-5))]" },
   ];
 
   const adminCards = [
-    { title: "Total Users", value: stats.totalUsers, icon: Users, color: "text-blue-600" },
-    { title: "Pending Approvals", value: stats.pendingUsers, icon: Clock, color: "text-amber-600" },
-    { title: "Total Subjects", value: stats.totalSubjects, icon: BookOpen, color: "text-green-600" },
-    { title: "Total Tests", value: stats.totalTests, icon: ClipboardList, color: "text-purple-600" },
+    { title: "Total Users", value: stats.totalUsers, icon: Users, color: "text-secondary" },
+    { title: "Pending Approvals", value: stats.pendingUsers, icon: Clock, color: "text-accent" },
+    { title: "Total Subjects", value: stats.totalSubjects, icon: BookOpen, color: "text-primary" },
+    { title: "Total Tests", value: stats.totalTests, icon: ClipboardList, color: "text-[hsl(var(--chart-5))]" },
   ];
 
   const cards =

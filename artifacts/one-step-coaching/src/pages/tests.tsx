@@ -333,7 +333,7 @@ export default function TestsPage() {
         <Card>
           <CardContent className="p-8 text-center">
             {testResult.passed ? (
-              <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
+              <CheckCircle className="w-20 h-20 text-primary mx-auto mb-4" />
             ) : (
               <XCircle className="w-20 h-20 text-destructive mx-auto mb-4" />
             )}
@@ -371,7 +371,7 @@ export default function TestsPage() {
           const isCorrect = userAnswer === q.correct_option;
 
           return (
-            <Card key={q.id} className={isCorrect ? "border-green-200" : "border-red-200"} data-testid={`review-question-${idx}`}>
+            <Card key={q.id} className={isCorrect ? "border-primary/25" : "border-destructive/25"} data-testid={`review-question-${idx}`}>
               <CardContent className="p-4">
                 <p className="font-medium mb-2">
                   {idx + 1}. {q.question_text}
@@ -386,14 +386,14 @@ export default function TestsPage() {
                       key={opt}
                       className={`flex items-center gap-2 py-1 px-2 rounded text-sm ${
                         isCorrectAnswer
-                          ? "bg-green-50 text-green-700 font-medium"
+                          ? "bg-primary/10 text-primary font-medium"
                           : isUserChoice
-                            ? "bg-red-50 text-red-700"
+                            ? "bg-destructive/10 text-destructive"
                             : ""
                       }`}
                     >
-                      {isCorrectAnswer && <CheckCircle className="w-4 h-4 text-green-500" />}
-                      {isUserChoice && !isCorrectAnswer && <XCircle className="w-4 h-4 text-red-500" />}
+                      {isCorrectAnswer && <CheckCircle className="w-4 h-4 text-primary" />}
+                      {isUserChoice && !isCorrectAnswer && <XCircle className="w-4 h-4 text-destructive" />}
                       <span>{opt}. {optText}</span>
                     </div>
                   );

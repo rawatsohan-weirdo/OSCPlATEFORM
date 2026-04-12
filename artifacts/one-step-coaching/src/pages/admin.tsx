@@ -106,9 +106,9 @@ export default function AdminPage() {
   const rejectedCount = users.filter((u) => u.status === "rejected").length;
 
   const statusColors: Record<string, string> = {
-    pending: "bg-amber-100 text-amber-800",
-    approved: "bg-green-100 text-green-800",
-    rejected: "bg-red-100 text-red-800",
+    pending: "bg-accent/15 text-accent-foreground border border-accent/25",
+    approved: "bg-primary/12 text-primary border border-primary/20",
+    rejected: "bg-destructive/12 text-destructive border border-destructive/20",
   };
 
   if (loading) {
@@ -128,7 +128,7 @@ export default function AdminPage() {
         <Card data-testid="card-total-users">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
-            <Users className="w-5 h-5 text-blue-600" />
+            <Users className="w-5 h-5 text-secondary" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{users.length}</div>
@@ -137,7 +137,7 @@ export default function AdminPage() {
         <Card data-testid="card-pending-users">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
-            <UserCheck className="w-5 h-5 text-amber-600" />
+            <UserCheck className="w-5 h-5 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{pendingCount}</div>
@@ -146,7 +146,7 @@ export default function AdminPage() {
         <Card data-testid="card-approved-users">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Approved</CardTitle>
-            <CheckCircle className="w-5 h-5 text-green-600" />
+            <CheckCircle className="w-5 h-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{approvedCount}</div>
@@ -155,7 +155,7 @@ export default function AdminPage() {
         <Card data-testid="card-rejected-users">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Rejected</CardTitle>
-            <UserX className="w-5 h-5 text-red-600" />
+            <UserX className="w-5 h-5 text-destructive" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{rejectedCount}</div>

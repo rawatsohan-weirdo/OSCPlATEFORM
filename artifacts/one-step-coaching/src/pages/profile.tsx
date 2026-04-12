@@ -141,9 +141,9 @@ export default function ProfilePage() {
     : "U";
 
   const statusColors: Record<string, string> = {
-    pending: "bg-amber-100 text-amber-800",
-    approved: "bg-green-100 text-green-800",
-    rejected: "bg-red-100 text-red-800",
+    pending: "bg-accent/15 text-accent-foreground border border-accent/25",
+    approved: "bg-primary/12 text-primary border border-primary/20",
+    rejected: "bg-destructive/12 text-destructive border border-destructive/20",
   };
 
   return (
