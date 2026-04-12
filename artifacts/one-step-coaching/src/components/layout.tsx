@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  GraduationCap,
   LayoutDashboard,
   BookOpen,
   ClipboardList,
@@ -22,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import coachingLogo from "@assets/coaching_logo_1775981898565.png";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth();
@@ -67,7 +67,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <Link href="/dashboard" className="flex items-center gap-2">
-              <GraduationCap className="w-7 h-7 text-primary" />
+              <img
+                src={coachingLogo}
+                alt="One Step Coaching Classes logo"
+                className="h-10 w-10 rounded-full object-cover shadow-sm ring-1 ring-primary/15"
+                data-testid="img-nav-logo"
+              />
               <span className="font-bold text-lg hidden sm:inline" data-testid="text-brand">One Step Coaching</span>
             </Link>
           </div>

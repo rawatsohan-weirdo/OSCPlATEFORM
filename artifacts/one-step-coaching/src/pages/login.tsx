@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, GraduationCap } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import coachingLogo from "@assets/coaching_logo_1775981898565.png";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -39,9 +40,12 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
-              <GraduationCap className="w-8 h-8 text-primary-foreground" />
-            </div>
+            <img
+              src={coachingLogo}
+              alt="One Step Coaching Classes logo"
+              className="h-24 w-24 rounded-full object-cover shadow-md ring-2 ring-primary/15"
+              data-testid="img-login-logo"
+            />
           </div>
           <CardTitle className="text-2xl font-bold" data-testid="text-login-title">One Step Coaching</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
