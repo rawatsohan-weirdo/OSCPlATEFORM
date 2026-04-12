@@ -34,3 +34,6 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
+
+[nix]
+packages = ["zip"]
