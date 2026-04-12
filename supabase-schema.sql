@@ -235,16 +235,16 @@ DROP POLICY IF EXISTS "System can insert profiles" ON public.users;
 DROP POLICY IF EXISTS "Admins can delete users" ON public.users;
 
 CREATE POLICY "Users can view own profile" ON public.users
-  FOR SELECT USING (auth.uid() = id);
+  FOR SELECT TO authenticated USING (auth.uid() = id);
 
 CREATE POLICY "Admins can view all users" ON public.users
-  FOR SELECT USING (public.is_admin());
+  FOR SELECT TO authenticated USING (public.is_admin());
 
 CREATE POLICY "System can insert profiles" ON public.users
-  FOR INSERT WITH CHECK (true);
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Users can update own editable profile fields" ON public.users
-  FOR UPDATE USING (auth.uid() = id)
+  FOR UPDATE TO authenticated USING (auth.uid() = id)
   WITH CHECK (
     auth.uid() = id
     AND role = public.current_user_role()
@@ -252,11 +252,11 @@ CREATE POLICY "Users can update own editable profile fields" ON public.users
   );
 
 CREATE POLICY "Admins can update all users" ON public.users
-  FOR UPDATE USING (public.is_admin())
+  FOR UPDATE TO authenticated USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete users" ON public.users
-  FOR DELETE USING (public.is_admin() AND auth.uid() <> id);
+  FOR DELETE TO authenticated USING (public.is_admin() AND auth.uid() <> id);
 
 DROP POLICY IF EXISTS "Anyone can view subjects" ON public.subjects;
 DROP POLICY IF EXISTS "Approved users can view subjects" ON public.subjects;
@@ -267,24 +267,24 @@ DROP POLICY IF EXISTS "Admins can update any subject" ON public.subjects;
 DROP POLICY IF EXISTS "Admins can delete any subject" ON public.subjects;
 
 CREATE POLICY "Approved users can view subjects" ON public.subjects
-  FOR SELECT USING (public.is_approved_user());
+  FOR SELECT TO authenticated USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create subjects" ON public.subjects
-  FOR INSERT WITH CHECK (public.is_teacher_or_admin() AND created_by = auth.uid());
+  FOR INSERT TO authenticated WITH CHECK (public.is_teacher_or_admin() AND created_by = auth.uid());
 
 CREATE POLICY "Teachers can update own subjects" ON public.subjects
-  FOR UPDATE USING (created_by = auth.uid())
+  FOR UPDATE TO authenticated USING (created_by = auth.uid())
   WITH CHECK (created_by = auth.uid());
 
 CREATE POLICY "Teachers can delete own subjects" ON public.subjects
-  FOR DELETE USING (created_by = auth.uid());
+  FOR DELETE TO authenticated USING (created_by = auth.uid());
 
 CREATE POLICY "Admins can update any subject" ON public.subjects
-  FOR UPDATE USING (public.is_admin())
+  FOR UPDATE TO authenticated USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete any subject" ON public.subjects
-  FOR DELETE USING (public.is_admin());
+  FOR DELETE TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Anyone can view chapters" ON public.chapters;
 DROP POLICY IF EXISTS "Approved users can view chapters" ON public.chapters;
@@ -295,26 +295,26 @@ DROP POLICY IF EXISTS "Admins can update any chapter" ON public.chapters;
 DROP POLICY IF EXISTS "Admins can delete any chapter" ON public.chapters;
 
 CREATE POLICY "Approved users can view chapters" ON public.chapters
-  FOR SELECT USING (public.is_approved_user());
+  FOR SELECT TO authenticated USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create chapters" ON public.chapters
-  FOR INSERT WITH CHECK (public.is_teacher_or_admin());
+  FOR INSERT TO authenticated WITH CHECK (public.is_teacher_or_admin());
 
 CREATE POLICY "Teachers can update own chapters" ON public.chapters
-  FOR UPDATE USING (
+  FOR UPDATE TO authenticated USING (
     EXISTS (SELECT 1 FROM public.subjects WHERE id = public.chapters.subject_id AND created_by = auth.uid())
   );
 
 CREATE POLICY "Teachers can delete own chapters" ON public.chapters
-  FOR DELETE USING (
+  FOR DELETE TO authenticated USING (
     EXISTS (SELECT 1 FROM public.subjects WHERE id = public.chapters.subject_id AND created_by = auth.uid())
   );
 
 CREATE POLICY "Admins can update any chapter" ON public.chapters
-  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+  FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete any chapter" ON public.chapters
-  FOR DELETE USING (public.is_admin());
+  FOR DELETE TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Anyone can view topics" ON public.topics;
 DROP POLICY IF EXISTS "Approved users can view topics" ON public.topics;
@@ -325,13 +325,13 @@ DROP POLICY IF EXISTS "Admins can update any topic" ON public.topics;
 DROP POLICY IF EXISTS "Admins can delete any topic" ON public.topics;
 
 CREATE POLICY "Approved users can view topics" ON public.topics
-  FOR SELECT USING (public.is_approved_user());
+  FOR SELECT TO authenticated USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create topics" ON public.topics
-  FOR INSERT WITH CHECK (public.is_teacher_or_admin());
+  FOR INSERT TO authenticated WITH CHECK (public.is_teacher_or_admin());
 
 CREATE POLICY "Teachers can update own topics" ON public.topics
-  FOR UPDATE USING (
+  FOR UPDATE TO authenticated USING (
     EXISTS (
       SELECT 1 FROM public.chapters c
       JOIN public.subjects s ON c.subject_id = s.id
@@ -340,7 +340,7 @@ CREATE POLICY "Teachers can update own topics" ON public.topics
   );
 
 CREATE POLICY "Teachers can delete own topics" ON public.topics
-  FOR DELETE USING (
+  FOR DELETE TO authenticated USING (
     EXISTS (
       SELECT 1 FROM public.chapters c
       JOIN public.subjects s ON c.subject_id = s.id
@@ -349,10 +349,10 @@ CREATE POLICY "Teachers can delete own topics" ON public.topics
   );
 
 CREATE POLICY "Admins can update any topic" ON public.topics
-  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+  FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete any topic" ON public.topics
-  FOR DELETE USING (public.is_admin());
+  FOR DELETE TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Anyone can view content" ON public.content_items;
 DROP POLICY IF EXISTS "Approved users can view content" ON public.content_items;
@@ -363,13 +363,13 @@ DROP POLICY IF EXISTS "Admins can update any content" ON public.content_items;
 DROP POLICY IF EXISTS "Admins can delete any content" ON public.content_items;
 
 CREATE POLICY "Approved users can view content" ON public.content_items
-  FOR SELECT USING (public.is_approved_user());
+  FOR SELECT TO authenticated USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create content" ON public.content_items
-  FOR INSERT WITH CHECK (public.is_teacher_or_admin());
+  FOR INSERT TO authenticated WITH CHECK (public.is_teacher_or_admin());
 
 CREATE POLICY "Teachers can update own content" ON public.content_items
-  FOR UPDATE USING (
+  FOR UPDATE TO authenticated USING (
     EXISTS (
       SELECT 1 FROM public.topics t
       JOIN public.chapters c ON t.chapter_id = c.id
@@ -379,7 +379,7 @@ CREATE POLICY "Teachers can update own content" ON public.content_items
   );
 
 CREATE POLICY "Teachers can delete own content" ON public.content_items
-  FOR DELETE USING (
+  FOR DELETE TO authenticated USING (
     EXISTS (
       SELECT 1 FROM public.topics t
       JOIN public.chapters c ON t.chapter_id = c.id
@@ -389,10 +389,10 @@ CREATE POLICY "Teachers can delete own content" ON public.content_items
   );
 
 CREATE POLICY "Admins can update any content" ON public.content_items
-  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+  FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete any content" ON public.content_items
-  FOR DELETE USING (public.is_admin());
+  FOR DELETE TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Users can view active tests" ON public.tests;
 DROP POLICY IF EXISTS "Approved users can view tests" ON public.tests;
@@ -403,22 +403,22 @@ DROP POLICY IF EXISTS "Admins can update any test" ON public.tests;
 DROP POLICY IF EXISTS "Admins can delete any test" ON public.tests;
 
 CREATE POLICY "Approved users can view tests" ON public.tests
-  FOR SELECT USING (public.is_approved_user() AND (is_active = TRUE OR created_by = auth.uid() OR public.is_admin()));
+  FOR SELECT TO authenticated USING (public.is_approved_user() AND (is_active = TRUE OR created_by = auth.uid() OR public.is_admin()));
 
 CREATE POLICY "Teachers and admins can create tests" ON public.tests
-  FOR INSERT WITH CHECK (public.is_teacher_or_admin() AND created_by = auth.uid());
+  FOR INSERT TO authenticated WITH CHECK (public.is_teacher_or_admin() AND created_by = auth.uid());
 
 CREATE POLICY "Teachers can update own tests" ON public.tests
-  FOR UPDATE USING (created_by = auth.uid()) WITH CHECK (created_by = auth.uid());
+  FOR UPDATE TO authenticated USING (created_by = auth.uid()) WITH CHECK (created_by = auth.uid());
 
 CREATE POLICY "Teachers can delete own tests" ON public.tests
-  FOR DELETE USING (created_by = auth.uid());
+  FOR DELETE TO authenticated USING (created_by = auth.uid());
 
 CREATE POLICY "Admins can update any test" ON public.tests
-  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+  FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete any test" ON public.tests
-  FOR DELETE USING (public.is_admin());
+  FOR DELETE TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Anyone can view questions" ON public.questions;
 DROP POLICY IF EXISTS "Approved users can view questions" ON public.questions;
@@ -429,22 +429,22 @@ DROP POLICY IF EXISTS "Admins can update any question" ON public.questions;
 DROP POLICY IF EXISTS "Admins can delete any question" ON public.questions;
 
 CREATE POLICY "Approved users can view questions" ON public.questions
-  FOR SELECT USING (public.is_approved_user());
+  FOR SELECT TO authenticated USING (public.is_approved_user());
 
 CREATE POLICY "Teachers and admins can create questions" ON public.questions
-  FOR INSERT WITH CHECK (public.is_teacher_or_admin());
+  FOR INSERT TO authenticated WITH CHECK (public.is_teacher_or_admin());
 
 CREATE POLICY "Teachers can update own questions" ON public.questions
-  FOR UPDATE USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.questions.test_id AND created_by = auth.uid()));
+  FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.questions.test_id AND created_by = auth.uid()));
 
 CREATE POLICY "Teachers can delete own questions" ON public.questions
-  FOR DELETE USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.questions.test_id AND created_by = auth.uid()));
+  FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.questions.test_id AND created_by = auth.uid()));
 
 CREATE POLICY "Admins can update any question" ON public.questions
-  FOR UPDATE USING (public.is_admin()) WITH CHECK (public.is_admin());
+  FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE POLICY "Admins can delete any question" ON public.questions
-  FOR DELETE USING (public.is_admin());
+  FOR DELETE TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Students can view own attempts" ON public.test_attempts;
 DROP POLICY IF EXISTS "Teachers can view attempts for their tests" ON public.test_attempts;
@@ -452,16 +452,16 @@ DROP POLICY IF EXISTS "Admins can view all attempts" ON public.test_attempts;
 DROP POLICY IF EXISTS "Users can insert own attempts" ON public.test_attempts;
 
 CREATE POLICY "Students can view own attempts" ON public.test_attempts
-  FOR SELECT USING (user_id = auth.uid());
+  FOR SELECT TO authenticated USING (user_id = auth.uid());
 
 CREATE POLICY "Teachers can view attempts for their tests" ON public.test_attempts
-  FOR SELECT USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.test_attempts.test_id AND created_by = auth.uid()));
+  FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.tests WHERE id = public.test_attempts.test_id AND created_by = auth.uid()));
 
 CREATE POLICY "Admins can view all attempts" ON public.test_attempts
-  FOR SELECT USING (public.is_admin());
+  FOR SELECT TO authenticated USING (public.is_admin());
 
 CREATE POLICY "Users can insert own attempts" ON public.test_attempts
-  FOR INSERT WITH CHECK (user_id = auth.uid() AND public.is_approved_user());
+  FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid() AND public.is_approved_user());
 
 -- ============================================================
 -- 6. STORAGE BUCKET AND POLICIES
@@ -481,35 +481,35 @@ DROP POLICY IF EXISTS "Everyone can view content files" ON storage.objects;
 DROP POLICY IF EXISTS "Approved users can view coaching assets" ON storage.objects;
 
 CREATE POLICY "Users can upload own profile pics" ON storage.objects
-  FOR INSERT WITH CHECK (
+  FOR INSERT TO authenticated WITH CHECK (
     bucket_id = 'coaching-assets'
     AND (storage.foldername(name))[1] = 'profiles'
     AND (storage.foldername(name))[2] = auth.uid()::text
   );
 
 CREATE POLICY "Users can update own profile pics" ON storage.objects
-  FOR UPDATE USING (
+  FOR UPDATE TO authenticated USING (
     bucket_id = 'coaching-assets'
     AND (storage.foldername(name))[1] = 'profiles'
     AND (storage.foldername(name))[2] = auth.uid()::text
   );
 
 CREATE POLICY "Users can delete own profile pics" ON storage.objects
-  FOR DELETE USING (
+  FOR DELETE TO authenticated USING (
     bucket_id = 'coaching-assets'
     AND (storage.foldername(name))[1] = 'profiles'
     AND (storage.foldername(name))[2] = auth.uid()::text
   );
 
 CREATE POLICY "Teachers can upload content" ON storage.objects
-  FOR INSERT WITH CHECK (
+  FOR INSERT TO authenticated WITH CHECK (
     bucket_id = 'coaching-assets'
     AND (storage.foldername(name))[1] = 'content'
     AND public.is_teacher_or_admin()
   );
 
 CREATE POLICY "Approved users can view coaching assets" ON storage.objects
-  FOR SELECT USING (bucket_id = 'coaching-assets' AND public.is_approved_user());
+  FOR SELECT TO authenticated USING (bucket_id = 'coaching-assets' AND public.is_approved_user());
 
 -- ============================================================
 -- 7. FIRST ADMIN NOTE
