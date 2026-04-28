@@ -1,2 +1,2 @@
 Deployed Link
-https://srs-full-stack--anonymous25thus.replit.app
+https://osc-pl-ateform--anonymous25thus.replit.app/
